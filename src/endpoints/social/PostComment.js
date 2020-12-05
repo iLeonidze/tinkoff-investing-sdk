@@ -1,0 +1,1 @@
+let QUERY="https://api-invest-gw.tinkoff.ru/social/v1/post/12748dfa-b3fc-43b6-907e-8624af5d8d2c/comment?ccc=true&appName=investing&platform=ios&deviceId=23DA11D2-DFD5-4306-9A76-ADF41B74560D&origin=mobile,ib5,loyalty,platform&sessionId=qLcD3oiEEhA94LvhUQ3cT0cKz7QeUoFI.m1-prod-api34&appVersion=4.2.0&cpswc=true&limit=15"
