@@ -16,6 +16,7 @@ module.exports = {
 
 		let parameters = {
 			path: PATH,
+			hostname: 'api-invest-gw.tinkoff.ru',
 			query: {}
 		};
 

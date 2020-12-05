@@ -2,7 +2,7 @@ const ApiError = require("./ApiError.js");
 
 class ApiResponse {
 
-	constructor({ api, response, data }) {
+	constructor({ response, data }) {
 
 		this.code = response.statusCode;
 
@@ -12,7 +12,6 @@ class ApiResponse {
 		} catch (error) {
 			throw new ApiError({
 				error,
-				api,
 				response
 			});
 		}
@@ -26,7 +25,6 @@ class ApiResponse {
 		if (this.status !== "ok") {
 			throw new ApiError({
 				content,
-				api,
 				response
 			});
 		}

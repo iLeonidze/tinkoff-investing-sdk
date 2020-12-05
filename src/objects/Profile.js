@@ -19,12 +19,12 @@ const merge = (target, obj) => {
 
 class Profile {
 
-	constructor({ data, api }) {
+	constructor({ data }) {
 
 		this.data = {}
 
 		if (typeof data['id'] == 'undefined')
-			throw new Exception('ID not set')
+			throw new Error('ID not set')
 
 		if (typeof this['id'] === 'undefined')
 			this.data.id = data['id'];
@@ -42,7 +42,7 @@ class Profile {
 		this.apply = function(data) {
 
 			if (this.data['id'] !== data['id']) {
-				throw new Exception('ID not equals')
+				throw new Error('ID not equals')
 			}
 
 			//if (typeof data['image'] !== 'undefined' && (typeof this.data['avatar'] === 'undefined' || this.data.avatar.id === data['image'])) {
@@ -75,20 +75,20 @@ class Profile {
 		this.save = function() {
 			try {
 				// todo: make this async
-				fs.writeFileSync(this.filePath, this.data);
+				fs.writeFileSync(this.filePath, JSON.stringify(this.data));
 				this.loaded = true;
-				api.data.profiles[this.id] = this;
+				// api.data.profiles[this.id] = this;
 			} catch (e) {
 				console.error(`Failed to save profile for user ${this.data.id} on disk`, e)
 			}
 		}
 
-		this.update = async function() {
-			return await api.social.profile.get({
-				id: this.id,
-				api
-			});
-		}
+		// this.update = async function() {
+		//	return await api.social.profile.get({
+		// 	 	id: this.id,
+		//		api
+		// 	});
+		// }
 
 		if (!this.loaded) this.load();
 

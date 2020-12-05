@@ -1,29 +1,35 @@
+const apiRequest = require('../../request.js')
+
 const Profile = require("../../objects/Profile.js");
 
-const PATH = "/social/v1/profile/";
+class ProfileEndpoint {
 
-module.exports = {
+	static async get(session, { id = null }) {
 
-	/*
-		Method: api.social.profile.get()
-		Description: get current profile or profile by id
-		Args:
-		  - id (string, optional, by default unset)
-		Returns: Profile
-	*/
-	get: async function({ id = null, api = this }) {
-
-		let path = PATH;
+		let path = '/social/v1/profile/';
 		if (id && typeof id === "string")
 			path += `${id}/`
 
-		let parameters = {
+		const { payload } = await apiRequest({
+			hostname: 'api-invest-gw.tinkoff.ru',
 			path,
-			query: {}
-		};
-
-		const { payload } = await api.request(parameters);
-		return new Profile({ data: payload, api });
+			method: 'GET',
+			headers: session.user.getInvestingHeaders(),
+			query: {
+				sessionId: session.getSessionId(),
+				deviceId: session.user.getDeviceId(),
+				// userAgent: session.user.getInvestingUserAgent(),
+				appVersion: session.user.getAppVersion(),
+				platform: session.user.getPlatform(),
+				origin: session.user.getOrigin(),
+				ccc: session.user.getCCC(),
+				cpswc: session.user.getCPSWC()
+			}
+		});
+		return new Profile({ data: payload });
 
 	}
+
 }
+
+module.exports = ProfileEndpoint;

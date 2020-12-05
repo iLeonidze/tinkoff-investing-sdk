@@ -7,34 +7,18 @@ module.exports = async function({
 	path,
 	hostname,
 	method,
-	query,
-	data,
-	headers = {},
-	ignoreDefaultQuery = false,
-	ignoreDefaultHeaders = false
+	query = {},
+	data = null,
+	headers = {}
 }) {
 
-	if (!hostname) hostname = "api-invest-gw.tinkoff.ru"
-	if (!method) method = "GET"
-	if (!query) query = {}
-	if (!data) data = null
-
 	if (!path) throw new Error("Invalid request path");
-
-	if (!ignoreDefaultQuery)
-		query = { ...this.identity, ...query };
+	if (!hostname) throw new Error("Invalid request hostname");
+	if (!method) throw new Error("Invalid request method");
 
 	let keyvals = [];
 	for (const key of Object.keys(query))
-		if (key !== "userAgent")
-			keyvals.push(`${key}=${query[key]}`);
-
-	const defaultHeaders = {
-		"Accept-Language": "en"
-	};
-
-	if (!ignoreDefaultHeaders)
-		headers = { ...defaultHeaders, ...headers }
+		keyvals.push(`${encodeURIComponent(key)}=${encodeURIComponent(query[key])}`);
 
 	let options = {
 		hostname,
@@ -52,10 +36,6 @@ module.exports = async function({
 		options.headers['Content-Length'] = data.length;
 	}
 
-	if (this.identity.userAgent) options.headers["User-Agent"] = this.identity.userAgent;
-
-	const api = this;
-
 	console.log(options, data)
 
 	return new Promise((resolve, reject) => {
@@ -67,16 +47,17 @@ module.exports = async function({
 			response.on("end", () => {
 				const buffer = Buffer.concat(data);
 				if (response.headers['content-type'].split(';')[0] === 'application/json') {
-					resolve(new ApiResponse({ api, response, data: buffer.toString() }));
+					resolve(new ApiResponse({ response, data: buffer.toString() }));
 				} else {
-					resolve(new ApiBuffer({ api, response, data: buffer }));
+					resolve(new ApiBuffer({ response, data: buffer }));
 				}
 			});
 		}).on("error", error => {
-			reject(new ApiError({ api, response, error }));
+			reject(new ApiError({ response, error }));
 		})
 		if (data !== null)
 			request.write(data);
+		console.log(request);
 		request.end();
 	});
 

@@ -4,8 +4,7 @@ class ApiError extends Error {
 		error = null,
 		data = null,
 		content = null,
-		response,
-		api
+		response
 	}) {
 
 		if (error) {
