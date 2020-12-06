@@ -1,19 +1,16 @@
-function merge(target, obj) {
-  let merger = (obj) => {
-    for (let prop in obj) {
-      if (obj.hasOwnProperty(prop)) {
-        if (Object.prototype.toString.call(obj[prop]) === '[object Object]') {
-          if (!target.hasOwnProperty(prop)) {
-            target[prop] = {}
-          }
-          target[prop] = merge(target[prop], obj[prop]);
-        } else {
-          target[prop] = obj[prop];
+function merge(target, source) {
+  for (let prop in source) {
+    if (source.hasOwnProperty(prop)) {
+      if (Object.prototype.toString.call(source[prop]) === '[object Object]') {
+        if (!target.hasOwnProperty(prop) || Object.prototype.toString.call(target[prop]) !== '[object Object]') {
+          target[prop] = {}
         }
+        merge(target[prop], source[prop]);
+      } else {
+        target[prop] = source[prop];
       }
     }
-  };
-  merger(obj);
+  }
 };
 
 module.exports = merge;

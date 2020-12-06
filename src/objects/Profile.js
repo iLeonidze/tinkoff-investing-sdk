@@ -149,12 +149,7 @@ class Profile {
 		}
 
 		this.verifyData(data);
-
-		console.log(this.data, data);
 		merge(this.data, data);
-
-
-		console.log(this.data);
 
 		this.loaded = true;
 		this.unloaded = false;
