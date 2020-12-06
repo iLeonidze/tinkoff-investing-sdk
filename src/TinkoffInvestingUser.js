@@ -1,15 +1,20 @@
 const fs = require('fs');
 const path = require('path');
 
+const merge = require('../merge.js');
+
+const SAVE_DELAY = 1000;
+
 const IDENTITY_DEFAULTS = {
   "appVersion": "4.15.3",
   "platform": "ios",
   "origin": "mobile,ib5,loyalty,platform",
   "investing": {
     "headers": {
+      "Accept": "*/*",
+      "User-Agent": "Investing/6282 CFNetwork/1206 Darwin/20.1.0",
       "Accept-Language": "ru"
-    },
-    "userAgent": "Investing/6282 CFNetwork/1206 Darwin/20.1.0"
+    }
   },
   "bank": {
     "headers": {
@@ -35,49 +40,112 @@ const IDENTITY_DEFAULTS = {
 
 class TinkoffInvestingUser {
 
-  constructor(localId, data = null) {
+  constructor(localId, data = null, storage = null) {
 
     this.localId = localId;
     this.data = data;
+    this.storage = storage;
 
     this.localFile = path.resolve(`${__dirname}/../data/users/${this.localId}.json`);
     this.loaded = false;
+    this.saved = false;
+    this.updating = false;
+    this.unloaded = true;
 
     if (this.data !== null) {
       this.verifyData();
       this.loaded = true;
+      this.unloaded = false;
     } else {
-      this.load();
+      this.reload();
     }
+
+    if (typeof this.data['meta'] !== 'object')
+      this.data['meta'] = {};
+
+    if (typeof this.data.meta['created'] !== 'number')
+      this.data.meta['created'] = new Date().getTime();
 
   }
 
-  load() {
+  reload() {
     if (!fs.existsSync(this.localFile)) {
       throw new Error(`User "${this.localId}" not exists at "${this.localFile}"`)
     }
+    let data;
     try {
-      this.data = JSON.parse(fs.readFileSync(this.localFile, 'utf8'));
+      data = JSON.parse(fs.readFileSync(this.localFile, 'utf8'));
     } catch (e) {
       throw new Error(`Failed to load user ${this.user}`, e)
     }
-    this.verifyData();
+    this.verifyData(data);
+    this.data = data;
+    this.saved = true;
+    this.loaded = true;
+    this.unloaded = false;
+    this.updateIndexes();
+    return this;
+  }
+
+  unload() {
+    if (!this.loaded) return;
+    this.storage.users.unloadUser(this);
+    this.data = {};
+    this.loaded = false;
+  }
+
+  updateIndexes() {
+    if (this.storage && this.storage.users.isUserInMemory(this)) {
+      this.storage.users.updateIndexesForUser(this);
+    }
     return this;
   }
 
   save() {
-    // TODO: use lazy save
+    if (this.unloaded) return this;
     try {
       fs.writeFileSync(this.localFile, JSON.stringify(this.data, null, 2));
     } catch (e) {
       throw new Error(`Failed to save user ${this.user}`, e)
     }
+    this.saved = true;
     return this;
   }
 
-  verifyData() {
+  delete() {
+    this.unload();
+    try {
+      fs.writeFileSync(this.localFile, JSON.stringify(this.data, null, 2));
+    } catch (e) {
+      throw new Error(`Failed to delete user ${this.user}`, e)
+    }
+    this.unloaded = true;
+  }
 
-    if (typeof this.data['auth'] !== 'object')
+  setUpdated({ updateMeta = true, updateIndexes = true }) {
+    if (updateMeta) this.data.meta['updated'] = new Date().getTime();
+    if (updateIndexes) this.updateIndexes();
+    if (this.updating) return this;
+    this.updating = true;
+    setTimeout(() => {
+      this.updating = false;
+      this.save();
+    }, SAVE_DELAY);
+  }
+
+  update(data) {
+    verifyData(data);
+    merge(this.data, data);
+    this.setUpdated();
+    return this;
+  }
+
+  verifyData(data) {
+
+    if (!data)
+      data = this.data;
+
+    if (typeof data['auth'] !== 'object')
       throw new Error('Data do not contain auth section')
 
     for (const key of [
@@ -88,7 +156,7 @@ class TinkoffInvestingUser {
       'auth_type_set_date',
       'auth_type'
     ]) {
-      if (typeof this.data.auth[key] !== 'string') {
+      if (typeof data.auth[key] !== 'string') {
         throw new Error(`Key "${key}" not exists in auth data section or incorrect`)
       }
     }
@@ -97,39 +165,32 @@ class TinkoffInvestingUser {
 
   }
 
-  static new({
-    localId,
-    sessionId,
-    deviceId,
-    pinHash,
-    fingerprint_change_date,
-    auth_type_set_date,
-    auth_type
-  }) {
-    return new TinkoffInvestingUser({
-      localId,
-      data: {
-        auth: {
-          sessionId,
-          deviceId,
-          pinHash,
-          fingerprint_change_date,
-          auth_type_set_date,
-          auth_type
-        }
-      }
-    })
+  isSaved() {
+    return !!this.saved;
   }
 
   getProfile() {
     // TODO: return Profile object instead of ID
-    return this.data['profile'] || null;
+
   }
 
-  setProfile(value) {
-    this.data['profile'] = value;
-    this.save();
+  setProfile() {
+    // TODO: set ID from Profile
+
+  }
+
+  getProfileId() {
+    return this.data['profileId'] || null;
+  }
+
+  setProfileId(value) {
+    this.data['profileId'] = value;
+    this.setUpdated();
     return this;
+  }
+
+  hasProfileId() {
+    return this.getProfileId() !== null;
   }
 
   getSessionId() {
@@ -138,7 +199,7 @@ class TinkoffInvestingUser {
 
   setSessionId(value) {
     this.data.auth['sessionId'] = value;
-    this.save();
+    this.setUpdated({ updateMeta: false });
     return this;
   }
 
@@ -148,7 +209,7 @@ class TinkoffInvestingUser {
 
   setDeviceId(value) {
     this.data.auth['deviceId'] = value;
-    this.save();
+    this.setUpdated();
     return this;
   }
 
@@ -158,7 +219,7 @@ class TinkoffInvestingUser {
 
   setPinHash(value) {
     this.data.auth['pinHash'] = value;
-    this.save();
+    this.setUpdated();
     return this;
   }
 
@@ -168,7 +229,7 @@ class TinkoffInvestingUser {
 
   setFingerprintChangeDate(value) {
     this.data.auth['fingerprint_change_date'] = value;
-    this.save();
+    this.setUpdated();
     return this;
   }
 
@@ -178,7 +239,7 @@ class TinkoffInvestingUser {
 
   setAuthTypeSetDate(value) {
     this.data.auth['auth_type_set_date'] = value;
-    this.save();
+    this.setUpdated();
     return this;
   }
 
@@ -188,7 +249,7 @@ class TinkoffInvestingUser {
 
   setAuthType(value) {
     this.data.auth['auth_type'] = value;
-    this.save();
+    this.setUpdated();
     return this;
   }
 
@@ -205,7 +266,7 @@ class TinkoffInvestingUser {
       this.data['identity'] = {};
     }
     this.data.identity['ccc'] = !!value;
-    this.save();
+    this.setUpdated();
     return this;
   }
 
@@ -222,7 +283,7 @@ class TinkoffInvestingUser {
       this.data['identity'] = {};
     }
     this.data.identity['cpswc'] = !!value;
-    this.save();
+    this.setUpdated();
     return this;
   }
 
@@ -239,7 +300,7 @@ class TinkoffInvestingUser {
       this.data['identity'] = {};
     }
     this.data.identity['appVersion'] = value;
-    this.save();
+    this.setUpdated();
     return this;
   }
 
@@ -256,7 +317,7 @@ class TinkoffInvestingUser {
       this.data['identity'] = {};
     }
     this.data.identity['platform'] = value;
-    this.save();
+    this.setUpdated();
     return this;
   }
 
@@ -273,7 +334,7 @@ class TinkoffInvestingUser {
       this.data['identity'] = {};
     }
     this.data.identity['origin'] = value;
-    this.save();
+    this.setUpdated();
     return this;
   }
 
@@ -293,27 +354,7 @@ class TinkoffInvestingUser {
       this.data.identity['investing'] = {};
     }
     this.data.identity.investing['headers'] = value;
-    this.save();
-    return this;
-  }
-
-  getInvestingUserAgent() {
-    try {
-      return this.data.identity['investing']['userAgent'];
-    } catch {
-      return IDENTITY_DEFAULTS['investing']['userAgent'];
-    }
-  }
-
-  setInvestingUserAgent(value) {
-    if (typeof this.data['identity'] !== 'object') {
-      this.data['identity'] = {};
-    }
-    if (typeof this.data.identity['investing'] !== 'object') {
-      this.data.identity['investing'] = {};
-    }
-    this.data.identity.investing['userAgent'] = value;
-    this.save();
+    this.setUpdated();
     return this;
   }
 
@@ -333,7 +374,7 @@ class TinkoffInvestingUser {
       this.data.identity['bank'] = {};
     }
     this.data.identity.bank['headers'] = value;
-    this.save();
+    this.setUpdated();
     return this;
   }
 
@@ -353,7 +394,7 @@ class TinkoffInvestingUser {
       this.data.identity['bank'] = {};
     }
     this.data.identity.bank['connectionType'] = value;
-    this.save();
+    this.setUpdated();
     return this;
   }
 
@@ -373,7 +414,7 @@ class TinkoffInvestingUser {
       this.data.identity['bank'] = {};
     }
     this.data.identity.bank['mobile_device_os'] = value;
-    this.save();
+    this.setUpdated();
     return this;
   }
 
@@ -393,7 +434,7 @@ class TinkoffInvestingUser {
       this.data.identity['bank'] = {};
     }
     this.data.identity.bank['mobile_device_os_version'] = value;
-    this.save();
+    this.setUpdated();
     return this;
   }
 
@@ -413,7 +454,7 @@ class TinkoffInvestingUser {
       this.data.identity['bank'] = {};
     }
     this.data.identity.bank['mobile_device_model'] = value;
-    this.save();
+    this.setUpdated();
     return this;
   }
 
@@ -433,7 +474,7 @@ class TinkoffInvestingUser {
       this.data.identity['bank'] = {};
     }
     this.data.identity.bank['appName'] = value;
-    this.save();
+    this.setUpdated();
     return this;
   }
 
@@ -453,7 +494,7 @@ class TinkoffInvestingUser {
       this.data.identity['bank'] = {};
     }
     this.data.identity.bank['screen_height'] = value;
-    this.save();
+    this.setUpdated();
     return this;
   }
 
@@ -473,7 +514,7 @@ class TinkoffInvestingUser {
       this.data.identity['bank'] = {};
     }
     this.data.identity.bank['screen_width'] = value;
-    this.save();
+    this.setUpdated();
     return this;
   }
 
@@ -493,7 +534,7 @@ class TinkoffInvestingUser {
       this.data.identity['bank'] = {};
     }
     this.data.identity.bank['device_type'] = value;
-    this.save();
+    this.setUpdated();
     return this;
   }
 
@@ -513,7 +554,7 @@ class TinkoffInvestingUser {
       this.data.identity['bank'] = {};
     }
     this.data.identity.bank['advertising_id'] = value;
-    this.save();
+    this.setUpdated();
     return this;
   }
 
@@ -533,7 +574,7 @@ class TinkoffInvestingUser {
       this.data.identity['bank'] = {};
     }
     this.data.identity.bank['fingerprint'] = value;
-    this.save();
+    this.setUpdated();
     return this;
   }
 
@@ -553,7 +594,7 @@ class TinkoffInvestingUser {
       this.data.identity['bank'] = {};
     }
     this.data.identity.bank['screen_dpi'] = value;
-    this.save();
+    this.setUpdated();
     return this;
   }
 
@@ -573,7 +614,7 @@ class TinkoffInvestingUser {
       this.data.identity['bank'] = {};
     }
     this.data.identity.bank['root_flag'] = value;
-    this.save();
+    this.setUpdated();
     return this;
   }
 
@@ -593,7 +634,7 @@ class TinkoffInvestingUser {
       this.data.identity['bank'] = {};
     }
     this.data.identity.bank['device_location_availability'] = value;
-    this.save();
+    this.setUpdated();
     return this;
   }
 

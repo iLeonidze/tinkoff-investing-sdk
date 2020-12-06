@@ -1,8 +1,8 @@
-const apiRequest = require('../../request.js')
+const apiRequest = require('../../request.js');
 
 function getBankConnectionProps(session) {
 
-  const headers = session.user.getBankHeaders();
+  const headers = Object.assign({}, session.user.getBankHeaders());
 
   const data = {
     'deviceId': session.user.getDeviceId(),
@@ -22,7 +22,7 @@ function getBankConnectionProps(session) {
     'fingerprint': session.user.getFingerprint(),
     'screen_dpi': session.user.getScreenDPI(),
     'root_flag': session.user.getRootFlag(),
-    'device_location_availability': session.user.getDeviceLocationAvailability(),
+    'device_location_availability': session.user.getDeviceLocationAvailability()
   };
 
   const query = {
@@ -62,7 +62,7 @@ class SessionEndpoint {
       data
     });
 
-    const result3 = await apiRequest({
+    const authResult = await apiRequest({
       hostname: 'api.tinkoff.ru',
       path: '/v1/auth/by/pin',
       method: 'POST',
@@ -76,7 +76,10 @@ class SessionEndpoint {
         ...data
       }
     });
-    console.log(result3)
+
+    session.user.data['lastAuthResult'] = authResult['payload'];
+    session.user.data.meta['authed'] = new Date().getTime();
+    session.user.setUpdated({ updateMeta: false, updateIndexes: false });
 
   }
 
@@ -94,6 +97,10 @@ class SessionEndpoint {
     });
 
     console.log(result);
+
+    session.user.data.meta['pinged'] = new Date().getTime();
+    session.user.setUpdated({ updateMeta: false, updateIndexes: false });
+
     // TODO: return equals ok?
 
   }

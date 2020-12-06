@@ -17,8 +17,8 @@ module.exports = async function({
 	if (!method) throw new Error("Invalid request method");
 
 	let keyvals = [];
-	for (const key of Object.keys(query))
-		keyvals.push(`${encodeURIComponent(key)}=${encodeURIComponent(query[key])}`);
+	for (const queryKey in query)
+		keyvals.push(`${encodeURIComponent(queryKey)}=${encodeURIComponent(query[queryKey])}`);
 
 	let options = {
 		hostname,
@@ -29,14 +29,12 @@ module.exports = async function({
 
 	if (data !== null) {
 		newData = []
-		for (const key in data)
-			newData.push(`${encodeURIComponent(key)}=${encodeURIComponent(data[key])}`);
+		for (const dataKey in data)
+			newData.push(`${encodeURIComponent(dataKey)}=${encodeURIComponent(data[dataKey])}`);
 		data = newData.join('&');
 		options.headers['Content-Type'] = 'application/x-www-form-urlencoded; charset=utf-8;';
 		options.headers['Content-Length'] = data.length;
 	}
-
-	console.log(options, data)
 
 	return new Promise((resolve, reject) => {
 		request = https.request(options, response => {
@@ -57,7 +55,6 @@ module.exports = async function({
 		})
 		if (data !== null)
 			request.write(data);
-		console.log(request);
 		request.end();
 	});
 

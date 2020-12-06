@@ -1,4 +1,4 @@
-const apiRequest = require('../../request.js')
+const apiRequest = require('../../request.js');
 
 const Profile = require("../../objects/Profile.js");
 
@@ -14,11 +14,10 @@ class ProfileEndpoint {
 			hostname: 'api-invest-gw.tinkoff.ru',
 			path,
 			method: 'GET',
-			headers: session.user.getInvestingHeaders(),
+			headers: Object.assign({}, session.user.getInvestingHeaders()),
 			query: {
 				sessionId: session.getSessionId(),
 				deviceId: session.user.getDeviceId(),
-				// userAgent: session.user.getInvestingUserAgent(),
 				appVersion: session.user.getAppVersion(),
 				platform: session.user.getPlatform(),
 				origin: session.user.getOrigin(),
@@ -26,6 +25,7 @@ class ProfileEndpoint {
 				cpswc: session.user.getCPSWC()
 			}
 		});
+
 		return new Profile({ data: payload });
 
 	}

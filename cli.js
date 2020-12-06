@@ -1,10 +1,10 @@
-const TinkoffInvestingUser = require('./src/TinkoffInvestingUser.js')
-const TinkoffInvestingUserSession = require('./src/TinkoffInvestingUserSession.js')
+const TinkoffInvestingStorage = require('./src/TinkoffInvestingStorage.js');
+const TinkoffInvestingUserSession = require('./src/TinkoffInvestingUserSession.js');
 
-
+const storage = new TinkoffInvestingStorage();
 const localId = 'iLeonidze';
 
-const user = new TinkoffInvestingUser(localId);
+const user = storage.users.getUser(localId);
 const session = new TinkoffInvestingUserSession(user);
 
 

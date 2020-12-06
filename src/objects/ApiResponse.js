@@ -29,7 +29,7 @@ class ApiResponse {
 			});
 		}
 		this.trackingId = content.trackingId;
-		this.payload = content.payload;
+		this.payload = content.payload || null;
 
 		if (typeof content['time'] !== 'undefined')
 			this.time = new Date(content.time);

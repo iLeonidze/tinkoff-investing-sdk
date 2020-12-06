@@ -1,21 +1,9 @@
 const fs = require('fs');
+const path = require('path');
+const merge = require('../../merge.js');
 
+const ProfileEndpoint = require("../endpoints/social/Profile.js");
 const Avatar = require("./Avatar.js");
-
-const merge = (target, obj) => {
-	let merger = (obj) => {
-		for (let prop in obj) {
-			if (obj.hasOwnProperty(prop)) {
-				if (Object.prototype.toString.call(obj[prop]) === '[object Object]') {
-					target[prop] = merge(target[prop], obj[prop]);
-				} else {
-					target[prop] = obj[prop];
-				}
-			}
-		}
-	};
-	merger(obj);
-};
 
 class Profile {
 
@@ -29,7 +17,7 @@ class Profile {
 		if (typeof this['id'] === 'undefined')
 			this.data.id = data['id'];
 
-		this.filePath = `../../../data/profiles/${this.data.id}`;
+		this.localFile = path.resolve(`${__dirname}/../../data/profiles/${this.data.id}.json`);
 
 		this.loaded = false;
 
@@ -61,9 +49,9 @@ class Profile {
 		}
 
 		this.load = function() {
-			if (fs.existsSync(this.filePath)) {
+			if (fs.existsSync(this.localFile)) {
 				try {
-					data = JSON.parse(fs.readFileSync(this.filePath, 'utf8'));
+					data = JSON.parse(fs.readFileSync(this.localFile, 'utf8'));
 					this.apply(data);
 					this.loaded = true;
 				} catch (e) {
@@ -75,7 +63,7 @@ class Profile {
 		this.save = function() {
 			try {
 				// todo: make this async
-				fs.writeFileSync(this.filePath, JSON.stringify(this.data));
+				fs.writeFileSync(this.localFile, JSON.stringify(this.data));
 				this.loaded = true;
 				// api.data.profiles[this.id] = this;
 			} catch (e) {
@@ -83,12 +71,11 @@ class Profile {
 			}
 		}
 
-		// this.update = async function() {
-		//	return await api.social.profile.get({
-		// 	 	id: this.id,
-		//		api
-		// 	});
-		// }
+		this.update = async function(session) {
+			return await ProfileEndpoint.get(session, {
+				id: this.id
+			});
+		}
 
 		if (!this.loaded) this.load();
 
