@@ -20,7 +20,7 @@ async function run() {
   if (!isStarted)
     throw new Error('Failed to start session')
 
-  return await require('./scripts/whoami.js')(session, storage);
+  return await require('./scripts/findAll.js')(session, storage);
 
 }
 
