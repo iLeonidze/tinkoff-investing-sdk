@@ -1,86 +1,186 @@
 const fs = require('fs');
-const path = require('path');
+
 const merge = require('../../merge.js');
 
 const ProfileEndpoint = require("../endpoints/social/Profile.js");
-const Avatar = require("./Avatar.js");
+
+const SAVE_DELAY = 1000;
 
 class Profile {
 
-	constructor({ data }) {
+	constructor({
+		profileId,
+		data = null,
+		storage = null,
+		fsLocation = null
+	}) {
 
-		this.data = {}
+		if (typeof profileId == 'undefined')
+			throw new Error('Profile ID not set');
 
-		if (typeof data['id'] == 'undefined')
-			throw new Error('ID not set')
-
-		if (typeof this['id'] === 'undefined')
-			this.data.id = data['id'];
-
-		this.localFile = path.resolve(`${__dirname}/../../data/profiles/${this.data.id}.json`);
+		this.profileId = profileId;
+		this.data = data;
+		this.storage = storage;
+		this.fsLocation = fsLocation;
 
 		this.loaded = false;
+		this.saved = false;
+		this.updating = false;
+		this.unloaded = true;
 
-		this.meta = {
-			created: new Date(),
-			updated: null,
-			prefetched: null
+		if (this.storage) {
+			if (this.storage.profiles.isProfileInMemory(this.localId))
+				throw new Error(`Profile "${this.localId}" already in memory`);
+			this.storage.profiles.profilesById[this.profileId] = this;
 		}
 
-		this.apply = function(data) {
-
-			if (this.data['id'] !== data['id']) {
-				throw new Error('ID not equals')
-			}
-
-			//if (typeof data['image'] !== 'undefined' && (typeof this.data['avatar'] === 'undefined' || this.data.avatar.id === data['image'])) {
-			//	this.data.avatar = new Avatar({ id: data['image'], api });
-			//	delete data['image'];
-			//}
-
-			if (typeof data['yearRelativeYield'] !== 'undefined') {
-				this.data.statistics.yearRelativeYield = data['yearRelativeYield'];
-				delete data['yearRelativeYield'];
-			}
-
-			merge(this.data, data);
-			this.save();
-
+		if (this.data !== null) {
+			this.verifyData();
+			this.loaded = true;
+			this.unloaded = false;
+			setUpdated({});
+		} else {
+			this.tryReload();
 		}
 
-		this.load = function() {
-			if (fs.existsSync(this.localFile)) {
-				try {
-					data = JSON.parse(fs.readFileSync(this.localFile, 'utf8'));
-					this.apply(data);
-					this.loaded = true;
-				} catch (e) {
-					console.error(`Failed to load profile for user ${this.data.id} from disk`, e)
-				}
-			}
-		}
+		if (this.data == null)
+			this.data = {};
 
-		this.save = function() {
+		if (typeof this.data['meta'] !== 'object')
+			this.data['meta'] = {};
+
+		if (typeof this.data.meta['created'] !== 'number')
+			this.data.meta['created'] = new Date().getTime();
+
+	}
+
+	tryReload() {
+		if (fs.existsSync(this.fsLocation)) {
+			return this.reload();
+		}
+		return this;
+	}
+
+	reload() {
+		if (!this.fsLocation) {
+			throw new Error(`Not possible to reload profile "${this.profileId}" with FS usage disabled`)
+		}
+		if (!fs.existsSync(this.fsLocation)) {
+			throw new Error(`Profile "${this.profileId}" not exists at "${this.fsLocation}"`)
+		}
+		let data;
+		try {
+			data = JSON.parse(fs.readFileSync(this.fsLocation, 'utf8'));
+		} catch (e) {
+			throw new Error(`Failed to load profile "${this.profileId}"`, e)
+		}
+		this.verifyData(data);
+		this.data = data;
+		this.saved = true;
+		this.loaded = true;
+		this.unloaded = false;
+		this.updateIndexes();
+		return this;
+	}
+
+	unload() {
+		if (!this.loaded) return;
+		this.storage.users.unloadProfile(this);
+		this.data = {};
+		this.loaded = false;
+	}
+
+	updateIndexes() {
+		if (this.storage && this.storage.profiles.isProfileInMemory(this)) {
+			this.storage.profiles.updateIndexesForProfile(this);
+		}
+		return this;
+	}
+
+	save() {
+		if (this.unloaded || !this.fsLocation) return this;
+		try {
+			fs.writeFileSync(this.fsLocation, JSON.stringify(this.data, null, 2));
+		} catch (e) {
+			throw new Error(`Failed to save profile ${this.profileId}`, e)
+		}
+		this.saved = true;
+		return this;
+	}
+
+	delete() {
+		this.unload();
+		if (this.fsLocation) {
 			try {
-				// todo: make this async
-				fs.writeFileSync(this.localFile, JSON.stringify(this.data));
-				this.loaded = true;
-				// api.data.profiles[this.id] = this;
+				fs.unlinkSync(this.fsLocation);
 			} catch (e) {
-				console.error(`Failed to save profile for user ${this.data.id} on disk`, e)
+				throw new Error(`Failed to delete profile ${this.profileId}`, e)
 			}
 		}
+		this.unloaded = true;
+	}
 
-		this.update = async function(session) {
-			return await ProfileEndpoint.get(session, {
-				id: this.id
-			});
+	setUpdated({ updateMeta = true, updateIndexes = true }) {
+		if (updateMeta) this.data.meta['updated'] = new Date().getTime();
+		if (updateIndexes) this.updateIndexes();
+		if (this.updating || !this.fsLocation) return this;
+		this.updating = true;
+		setTimeout(() => {
+			this.updating = false;
+			this.save();
+		}, SAVE_DELAY);
+	}
+
+	update(data) {
+
+		if (typeof data['id'] !== 'undefined') {
+			if (this.profileId !== data['id']) throw new Error('Profile ID not equals');
+			delete data['id'];
+			data = {
+				raw: data
+			};
 		}
 
-		if (!this.loaded) this.load();
+		if (typeof data.raw['yearRelativeYield'] !== 'undefined') {
+			if (typeof data.raw['statistics'] === 'undefined')
+				data.raw['statistics'] = {};
+			data.raw.statistics['yearRelativeYield'] = data['yearRelativeYield'];
+			delete data.raw['yearRelativeYield'];
+		}
 
-		this.apply(data);
+		this.verifyData(data);
 
+		console.log(this.data, data);
+		merge(this.data, data);
+
+
+		console.log(this.data);
+
+		this.loaded = true;
+		this.unloaded = false;
+		this.setUpdated({});
+
+		return this;
+
+	}
+
+	verifyData(data) {
+
+		if (!data)
+			data = this.data;
+
+		// TODO
+
+		return this;
+
+	}
+
+	async resync(session) {
+		return await ProfileEndpoint.get({
+			profileId: this.profileId,
+			session,
+			storage: this.storage
+		});
 	}
 
 }

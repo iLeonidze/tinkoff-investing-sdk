@@ -1,11 +1,22 @@
+const fs = require('fs');
+const path = require('path');
+
 const TinkoffInvestingUser = require('./TinkoffInvestingUser.js');
 
 class TinkoffInvestingUsers {
 
-  constructor(storage) {
+  constructor({ storage, fsLocation }) {
+
     this.storage = storage;
+    this.fsLocation = fsLocation;
+
+    if (this.fsLocation && !fs.existsSync(this.fsLocation)) {
+      fs.mkdirSync(this.fsLocation);
+    }
+
     this.usersById = {}
     this.usersByProfileId = {};
+
   }
 
   isUserInMemory(localId) {
@@ -29,7 +40,12 @@ class TinkoffInvestingUsers {
   }
 
   loadUser(localId) {
-    const user = new TinkoffInvestingUser(localId, null, this.storage).reload();
+    if (this.isUserInMemory()) return this.getUser(localId);
+    const user = new TinkoffInvestingUser({
+      localId,
+      storage: this.storage,
+      fsLocation: this.getFsLocationForUser(localId)
+    });
     this.usersById[localId] = user;
     this.updateIndexesForUser(user);
     return user;
@@ -56,6 +72,10 @@ class TinkoffInvestingUsers {
 
   }
 
+  getFsLocationForUser(localId) {
+    return this.fsLocation ? path.join(this.fsLocation, `${localId}.json`) : null;
+  }
+
   newUser({
     localId,
     sessionId,
@@ -77,8 +97,9 @@ class TinkoffInvestingUsers {
           auth_type
         }
       },
-      storage: this.storage
-    })
+      storage: this.storage,
+      fsLocation: this.getFsLocationForUser(localId)
+    });
   }
 
   createOrUpdateUser({
@@ -93,15 +114,13 @@ class TinkoffInvestingUsers {
     const user = this.getUser(localId);
     if (user) {
       return user.update({
-        data: {
-          auth: {
-            sessionId,
-            deviceId,
-            pinHash,
-            fingerprint_change_date,
-            auth_type_set_date,
-            auth_type
-          }
+        auth: {
+          sessionId,
+          deviceId,
+          pinHash,
+          fingerprint_change_date,
+          auth_type_set_date,
+          auth_type
         }
       });
     } else {
@@ -113,7 +132,7 @@ class TinkoffInvestingUsers {
         fingerprint_change_date,
         auth_type_set_date,
         auth_type
-      }).save();
+      });
     }
   }
 

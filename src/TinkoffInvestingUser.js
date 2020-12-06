@@ -1,5 +1,4 @@
 const fs = require('fs');
-const path = require('path');
 
 const merge = require('../merge.js');
 
@@ -40,25 +39,43 @@ const IDENTITY_DEFAULTS = {
 
 class TinkoffInvestingUser {
 
-  constructor(localId, data = null, storage = null) {
+  constructor({
+    localId,
+    data = null,
+    storage = null,
+    fsLocation = null
+  }) {
+
+    if (typeof localId === 'undefined')
+      throw new Error('User ID not set');
 
     this.localId = localId;
     this.data = data;
     this.storage = storage;
+    this.fsLocation = fsLocation;
 
-    this.localFile = path.resolve(`${__dirname}/../data/users/${this.localId}.json`);
     this.loaded = false;
     this.saved = false;
     this.updating = false;
     this.unloaded = true;
 
+    if (this.storage) {
+      if (this.storage.users.isUserInMemory(this.localId))
+        throw new Error(`User "${this.localId}" already in memory`);
+      this.storage.users.usersById[this.localId] = this;
+    }
+
     if (this.data !== null) {
       this.verifyData();
       this.loaded = true;
       this.unloaded = false;
+      setUpdated({});
     } else {
-      this.reload();
+      this.tryReload();
     }
+
+    if (this.data == null)
+      this.data = {};
 
     if (typeof this.data['meta'] !== 'object')
       this.data['meta'] = {};
@@ -68,15 +85,25 @@ class TinkoffInvestingUser {
 
   }
 
+  tryReload() {
+    if (fs.existsSync(this.fsLocation)) {
+      return this.reload();
+    }
+    return this;
+  }
+
   reload() {
-    if (!fs.existsSync(this.localFile)) {
-      throw new Error(`User "${this.localId}" not exists at "${this.localFile}"`)
+    if (!this.fsLocation) {
+      throw new Error(`Not possible to reload user "${this.localId}" with FS usage disabled`)
+    }
+    if (!fs.existsSync(this.fsLocation)) {
+      throw new Error(`User "${this.localId}" not exists at "${this.fsLocation}"`)
     }
     let data;
     try {
-      data = JSON.parse(fs.readFileSync(this.localFile, 'utf8'));
+      data = JSON.parse(fs.readFileSync(this.fsLocation, 'utf8'));
     } catch (e) {
-      throw new Error(`Failed to load user ${this.user}`, e)
+      throw new Error(`Failed to load user "${this.localId}"`, e)
     }
     this.verifyData(data);
     this.data = data;
@@ -102,11 +129,11 @@ class TinkoffInvestingUser {
   }
 
   save() {
-    if (this.unloaded) return this;
+    if (this.unloaded || !this.fsLocation) return this;
     try {
-      fs.writeFileSync(this.localFile, JSON.stringify(this.data, null, 2));
+      fs.writeFileSync(this.fsLocation, JSON.stringify(this.data, null, 2));
     } catch (e) {
-      throw new Error(`Failed to save user ${this.user}`, e)
+      throw new Error(`Failed to save user ${this.localId}`, e)
     }
     this.saved = true;
     return this;
@@ -114,10 +141,12 @@ class TinkoffInvestingUser {
 
   delete() {
     this.unload();
-    try {
-      fs.writeFileSync(this.localFile, JSON.stringify(this.data, null, 2));
-    } catch (e) {
-      throw new Error(`Failed to delete user ${this.user}`, e)
+    if (this.fsLocation) {
+      try {
+        fs.unlinkSync(this.fsLocation);
+      } catch (e) {
+        throw new Error(`Failed to delete user ${this.localId}`, e)
+      }
     }
     this.unloaded = true;
   }
@@ -125,7 +154,7 @@ class TinkoffInvestingUser {
   setUpdated({ updateMeta = true, updateIndexes = true }) {
     if (updateMeta) this.data.meta['updated'] = new Date().getTime();
     if (updateIndexes) this.updateIndexes();
-    if (this.updating) return this;
+    if (this.updating || !this.fsLocation) return this;
     this.updating = true;
     setTimeout(() => {
       this.updating = false;
@@ -134,10 +163,16 @@ class TinkoffInvestingUser {
   }
 
   update(data) {
-    verifyData(data);
+
+    this.verifyData(data);
     merge(this.data, data);
-    this.setUpdated();
+
+    this.loaded = true;
+    this.unloaded = false;
+    this.setUpdated({});
+
     return this;
+
   }
 
   verifyData(data) {
@@ -170,13 +205,12 @@ class TinkoffInvestingUser {
   }
 
   getProfile() {
-    // TODO: return Profile object instead of ID
-
+    return this.storage.profiles.getProfile(this.getProfileId());
   }
 
-  setProfile() {
-    // TODO: set ID from Profile
-
+  setProfile(profile) {
+    this.setProfileId(profile.profileId);
+    return this;
   }
 
   getProfileId() {
@@ -185,7 +219,7 @@ class TinkoffInvestingUser {
 
   setProfileId(value) {
     this.data['profileId'] = value;
-    this.setUpdated();
+    this.setUpdated({});
     return this;
   }
 
@@ -209,7 +243,7 @@ class TinkoffInvestingUser {
 
   setDeviceId(value) {
     this.data.auth['deviceId'] = value;
-    this.setUpdated();
+    this.setUpdated({});
     return this;
   }
 
@@ -219,7 +253,7 @@ class TinkoffInvestingUser {
 
   setPinHash(value) {
     this.data.auth['pinHash'] = value;
-    this.setUpdated();
+    this.setUpdated({});
     return this;
   }
 
@@ -229,7 +263,7 @@ class TinkoffInvestingUser {
 
   setFingerprintChangeDate(value) {
     this.data.auth['fingerprint_change_date'] = value;
-    this.setUpdated();
+    this.setUpdated({});
     return this;
   }
 
@@ -239,7 +273,7 @@ class TinkoffInvestingUser {
 
   setAuthTypeSetDate(value) {
     this.data.auth['auth_type_set_date'] = value;
-    this.setUpdated();
+    this.setUpdated({});
     return this;
   }
 
@@ -249,7 +283,7 @@ class TinkoffInvestingUser {
 
   setAuthType(value) {
     this.data.auth['auth_type'] = value;
-    this.setUpdated();
+    this.setUpdated({});
     return this;
   }
 
@@ -266,7 +300,7 @@ class TinkoffInvestingUser {
       this.data['identity'] = {};
     }
     this.data.identity['ccc'] = !!value;
-    this.setUpdated();
+    this.setUpdated({});
     return this;
   }
 
@@ -283,7 +317,7 @@ class TinkoffInvestingUser {
       this.data['identity'] = {};
     }
     this.data.identity['cpswc'] = !!value;
-    this.setUpdated();
+    this.setUpdated({});
     return this;
   }
 
@@ -300,7 +334,7 @@ class TinkoffInvestingUser {
       this.data['identity'] = {};
     }
     this.data.identity['appVersion'] = value;
-    this.setUpdated();
+    this.setUpdated({});
     return this;
   }
 
@@ -317,7 +351,7 @@ class TinkoffInvestingUser {
       this.data['identity'] = {};
     }
     this.data.identity['platform'] = value;
-    this.setUpdated();
+    this.setUpdated({});
     return this;
   }
 
@@ -334,7 +368,7 @@ class TinkoffInvestingUser {
       this.data['identity'] = {};
     }
     this.data.identity['origin'] = value;
-    this.setUpdated();
+    this.setUpdated({});
     return this;
   }
 
@@ -354,7 +388,7 @@ class TinkoffInvestingUser {
       this.data.identity['investing'] = {};
     }
     this.data.identity.investing['headers'] = value;
-    this.setUpdated();
+    this.setUpdated({});
     return this;
   }
 
@@ -374,7 +408,7 @@ class TinkoffInvestingUser {
       this.data.identity['bank'] = {};
     }
     this.data.identity.bank['headers'] = value;
-    this.setUpdated();
+    this.setUpdated({});
     return this;
   }
 
@@ -394,7 +428,7 @@ class TinkoffInvestingUser {
       this.data.identity['bank'] = {};
     }
     this.data.identity.bank['connectionType'] = value;
-    this.setUpdated();
+    this.setUpdated({});
     return this;
   }
 
@@ -414,7 +448,7 @@ class TinkoffInvestingUser {
       this.data.identity['bank'] = {};
     }
     this.data.identity.bank['mobile_device_os'] = value;
-    this.setUpdated();
+    this.setUpdated({});
     return this;
   }
 
@@ -434,7 +468,7 @@ class TinkoffInvestingUser {
       this.data.identity['bank'] = {};
     }
     this.data.identity.bank['mobile_device_os_version'] = value;
-    this.setUpdated();
+    this.setUpdated({});
     return this;
   }
 
@@ -454,7 +488,7 @@ class TinkoffInvestingUser {
       this.data.identity['bank'] = {};
     }
     this.data.identity.bank['mobile_device_model'] = value;
-    this.setUpdated();
+    this.setUpdated({});
     return this;
   }
 
@@ -474,7 +508,7 @@ class TinkoffInvestingUser {
       this.data.identity['bank'] = {};
     }
     this.data.identity.bank['appName'] = value;
-    this.setUpdated();
+    this.setUpdated({});
     return this;
   }
 
@@ -494,7 +528,7 @@ class TinkoffInvestingUser {
       this.data.identity['bank'] = {};
     }
     this.data.identity.bank['screen_height'] = value;
-    this.setUpdated();
+    this.setUpdated({});
     return this;
   }
 
@@ -514,7 +548,7 @@ class TinkoffInvestingUser {
       this.data.identity['bank'] = {};
     }
     this.data.identity.bank['screen_width'] = value;
-    this.setUpdated();
+    this.setUpdated({});
     return this;
   }
 
@@ -534,7 +568,7 @@ class TinkoffInvestingUser {
       this.data.identity['bank'] = {};
     }
     this.data.identity.bank['device_type'] = value;
-    this.setUpdated();
+    this.setUpdated({});
     return this;
   }
 
@@ -554,7 +588,7 @@ class TinkoffInvestingUser {
       this.data.identity['bank'] = {};
     }
     this.data.identity.bank['advertising_id'] = value;
-    this.setUpdated();
+    this.setUpdated({});
     return this;
   }
 
@@ -574,7 +608,7 @@ class TinkoffInvestingUser {
       this.data.identity['bank'] = {};
     }
     this.data.identity.bank['fingerprint'] = value;
-    this.setUpdated();
+    this.setUpdated({});
     return this;
   }
 
@@ -594,7 +628,7 @@ class TinkoffInvestingUser {
       this.data.identity['bank'] = {};
     }
     this.data.identity.bank['screen_dpi'] = value;
-    this.setUpdated();
+    this.setUpdated({});
     return this;
   }
 
@@ -614,7 +648,7 @@ class TinkoffInvestingUser {
       this.data.identity['bank'] = {};
     }
     this.data.identity.bank['root_flag'] = value;
-    this.setUpdated();
+    this.setUpdated({});
     return this;
   }
 
@@ -634,7 +668,7 @@ class TinkoffInvestingUser {
       this.data.identity['bank'] = {};
     }
     this.data.identity.bank['device_location_availability'] = value;
-    this.setUpdated();
+    this.setUpdated({});
     return this;
   }
 

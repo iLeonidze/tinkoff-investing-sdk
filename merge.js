@@ -1,4 +1,4 @@
-module.exports = (target, obj) => {
+function merge(target, obj) {
   let merger = (obj) => {
     for (let prop in obj) {
       if (obj.hasOwnProperty(prop)) {
@@ -15,3 +15,5 @@ module.exports = (target, obj) => {
   };
   merger(obj);
 };
+
+module.exports = merge;

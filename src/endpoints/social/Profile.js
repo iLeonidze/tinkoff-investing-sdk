@@ -1,18 +1,16 @@
 const apiRequest = require('../../request.js');
 
-const Profile = require("../../objects/Profile.js");
-
 class ProfileEndpoint {
 
-	static async get(session, { id = null }) {
-
-		let path = '/social/v1/profile/';
-		if (id && typeof id === "string")
-			path += `${id}/`
+	static async get({
+		session,
+		storage,
+		profileId = null
+	}) {
 
 		const { payload } = await apiRequest({
 			hostname: 'api-invest-gw.tinkoff.ru',
-			path,
+			path: '/social/v1/profile/' + (profileId ? `${profileId}/` : ''),
 			method: 'GET',
 			headers: Object.assign({}, session.user.getInvestingHeaders()),
 			query: {
@@ -26,7 +24,7 @@ class ProfileEndpoint {
 			}
 		});
 
-		return new Profile({ data: payload });
+		return storage.profiles.createOrUpdateProfile({ profileId, data: payload });
 
 	}
 
