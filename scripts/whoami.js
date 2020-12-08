@@ -1,3 +1,3 @@
-module.exports = async (session, storage) => {
+module.exports = async (session, storage, arguments) => {
   return session.user.getProfile().resync(session);
 }

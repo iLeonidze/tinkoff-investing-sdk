@@ -51,7 +51,7 @@ module.exports = async function({
 				}
 			});
 		}).on("error", error => {
-			reject(new ApiError({ response, error }));
+			reject(new ApiError({ error }));
 		})
 		if (data !== null)
 			request.write(data);

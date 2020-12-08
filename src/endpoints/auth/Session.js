@@ -96,8 +96,6 @@ class SessionEndpoint {
       data
     });
 
-    console.log(result);
-
     session.user.data.meta['pinged'] = new Date().getTime();
     session.user.setUpdated({ updateMeta: false, updateIndexes: false });
 

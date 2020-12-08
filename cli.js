@@ -16,11 +16,15 @@ const session = new TinkoffInvestingUserSession(user);
 
 async function run() {
 
+  const arguments = [];
+
   const isStarted = await session.start();
   if (!isStarted)
     throw new Error('Failed to start session')
 
-  return await require('./scripts/findAll.js')(session, storage);
+  arguments[0] = 'ck5';
+
+  return await require('./scripts/getAllUsers.js')(session, storage, arguments);
 
 }
 

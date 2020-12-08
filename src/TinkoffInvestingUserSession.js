@@ -21,8 +21,9 @@ class TinkoffInvestingUserSession {
   async start() {
     if (this.isStarted()) return false;
     await SessionEndpoint.renew(this);
+    const session = this;
     this.timer = setInterval(function() {
-      SessionEndpoint.ping(this).then(res => {
+      SessionEndpoint.ping(session).then(res => {
         // ?
       }).catch(e => {
         console.error('Failed to ping session', e)

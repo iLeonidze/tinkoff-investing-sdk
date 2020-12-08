@@ -6,10 +6,15 @@ class ProfileCatalogEndpoint {
 		session,
 		storage,
 		nextCursor = null,
+		nickname = null,
 		limit = 50
 	}) {
 
 		const query = {};
+
+		if (typeof nickname === 'string') {
+			query.nickname = nickname;
+		}
 
 		if (typeof limit === "string") limit = parseInt(limit);
 		if (typeof limit === "number" && !isNaN(limit) && limit > 0) {
