@@ -22,7 +22,7 @@ async function run() {
   if (!isStarted)
     throw new Error('Failed to start session')
 
-  arguments[0] = 'ck5';
+  arguments[0] = 'd0a';
 
   return await require('./scripts/getAllUsers.js')(session, storage, arguments);
 

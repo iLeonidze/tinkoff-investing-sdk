@@ -1,5 +1,3 @@
-const apiRequest = require('../../request.js');
-
 class ProfileEndpoint {
 
 	static async get({
@@ -8,7 +6,7 @@ class ProfileEndpoint {
 		profileId = null
 	}) {
 
-		const { payload } = await apiRequest({
+		const { payload } = await session.request({
 			hostname: 'api-invest-gw.tinkoff.ru',
 			path: '/social/v1/profile/' + (profileId ? `${profileId}/` : ''),
 			method: 'GET',

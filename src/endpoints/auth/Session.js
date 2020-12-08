@@ -1,5 +1,3 @@
-const apiRequest = require('../../request.js');
-
 function getBankConnectionProps(session) {
 
   const headers = Object.assign({}, session.user.getBankHeaders());
@@ -40,29 +38,31 @@ class SessionEndpoint {
 
     const { headers, data, query } = getBankConnectionProps(session);
 
-    const { payload } = await apiRequest({
+    const { payload } = await session.request({
       hostname: 'api.tinkoff.ru',
       path: '/v1/auth/session',
       method: 'POST',
       headers,
       query,
-      data
+      data,
+      ignoreCooldown: true
     });
 
     const oldSessionId = session.getSessionId();
     session.setSessionId(payload.sessionid);
     query['sessionid'] = session.getSessionId();
 
-    await apiRequest({
+    await session.request({
       hostname: 'api.tinkoff.ru',
       path: '/v1/warmup_cache',
       method: 'POST',
       headers,
       query,
-      data
+      data,
+      ignoreCooldown: true
     });
 
-    const authResult = await apiRequest({
+    const authResult = await session.request({
       hostname: 'api.tinkoff.ru',
       path: '/v1/auth/by/pin',
       method: 'POST',
@@ -74,7 +74,8 @@ class SessionEndpoint {
         'auth_type_set_date': session.user.getAuthTypeSetDate(),
         'auth_type': session.user.getAuthType(),
         ...data
-      }
+      },
+      ignoreCooldown: true
     });
 
     session.user.data['lastAuthResult'] = authResult['payload'];
@@ -87,13 +88,14 @@ class SessionEndpoint {
 
     const { headers, data, query } = getBankConnectionProps(session);
 
-    const result = await apiRequest({
+    const result = await session.request({
       hostname: 'api.tinkoff.ru',
       path: '/v1/ping',
       method: 'POST',
       headers,
       query,
-      data
+      data,
+      ignoreCooldown: true
     });
 
     session.user.data.meta['pinged'] = new Date().getTime();

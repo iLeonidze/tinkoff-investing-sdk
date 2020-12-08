@@ -83,6 +83,9 @@ class TinkoffInvestingUser {
     if (typeof this.data.meta['created'] !== 'number')
       this.data.meta['created'] = new Date().getTime();
 
+    if (typeof this.data.meta['connected'] !== 'number')
+      this.data.meta['connected'] = 0;
+
   }
 
   tryReload() {
@@ -198,6 +201,15 @@ class TinkoffInvestingUser {
 
     return this;
 
+  }
+
+  updateConnected() {
+    this.data.meta['connected'] = new Date().getTime();
+    this.setUpdated({ updateMeta: false, updateIndexes: false });
+  }
+
+  getConnected() {
+    return this.data.meta['connected'];
   }
 
   isSaved() {

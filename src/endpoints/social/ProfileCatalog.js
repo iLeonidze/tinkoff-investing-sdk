@@ -1,5 +1,3 @@
-const apiRequest = require('../../request.js');
-
 class ProfileCatalogEndpoint {
 
 	static async get({
@@ -26,13 +24,13 @@ class ProfileCatalogEndpoint {
 		if (nextCursor !== null) {
 			if (typeof nextCursor === "string") nextCursor = parseInt(nextCursor);
 			if (typeof nextCursor === "number" && !isNaN(nextCursor) && nextCursor > 0) {
-				query.nextCursor = nextCursor;
+				query.cursor = nextCursor;
 			} else {
 				throw new Error("Cursor is invalid");
 			}
 		}
 
-		const { payload } = await apiRequest({
+		const { payload } = await session.request({
 			hostname: 'api-invest-gw.tinkoff.ru',
 			path: '/social/v1/profile/catalog',
 			method: 'GET',
@@ -57,6 +55,7 @@ class ProfileCatalogEndpoint {
 		// TODO: this is a WA
 		if (payload.hasNext) {
 			list.hasNext = () => true;
+			list.nextCursor = payload.nextCursor;
 			list.getNext = async () => {
 				return ProfileCatalogEndpoint.get({
 					session,
@@ -66,6 +65,7 @@ class ProfileCatalogEndpoint {
 				});
 			}
 		} else {
+			list.nextCursor = null;
 			list.hasNext = () => false;
 		}
 

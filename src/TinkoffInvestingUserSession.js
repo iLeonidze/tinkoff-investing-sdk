@@ -1,3 +1,5 @@
+const request = require('./request.js');
+const sleep = require('../sleep.js');
 const TinkoffInvestingUser = require('./TinkoffInvestingUser.js');
 
 const SessionEndpoint = require("./endpoints/auth/Session.js");
@@ -11,6 +13,8 @@ class TinkoffInvestingUserSession {
 
     this.user = user;
     this.timer = null;
+    // this.cooldown = 1100;
+    this.cooldown = 800;
 
   }
 
@@ -46,6 +50,22 @@ class TinkoffInvestingUserSession {
 
   setSessionId(value) {
     return this.user.setSessionId(value);
+  }
+
+  async request(options) {
+    if (typeof options['ignoreCooldown'] !== 'boolean' || !options['ignoreCooldown']) {
+      const lastConnected = this.user.getConnected();
+      const nextConnect = lastConnected + this.cooldown;
+      const currentConnect = new Date().getTime();
+      if (nextConnect > currentConnect) {
+        await sleep(nextConnect - currentConnect, 400);
+      }
+    }
+    if (typeof options['ignoreCooldown'] !== 'undefined') {
+      delete options['ignoreCooldown'];
+    }
+    this.user.updateConnected();
+    return await request(options);
   }
 
 }
