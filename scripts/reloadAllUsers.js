@@ -1,4 +1,4 @@
-const calculateETA = require('../calculateETA.js');
+const calculateETA = require('../utils/calculateETA.js');
 
 module.exports = async (session, storage, arguments) => {
 

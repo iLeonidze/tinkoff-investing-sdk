@@ -1,6 +1,6 @@
 const fs = require('fs');
 
-const merge = require('../../merge.js');
+const merge = require('../../utils/merge.js');
 
 const ProfileEndpoint = require("../endpoints/social/Profile.js");
 

@@ -1,5 +1,5 @@
 const request = require('./request.js');
-const sleep = require('../sleep.js');
+const sleep = require('../utils/sleep.js');
 const TinkoffInvestingUser = require('./TinkoffInvestingUser.js');
 
 const SessionEndpoint = require("./endpoints/auth/Session.js");

@@ -1,5 +1,5 @@
 const fs = require('fs');
-const calculateETA = require('../calculateETA.js');
+const calculateETA = require('../utils/calculateETA.js');
 const ProfileCatalogEndpoint = require('../src/endpoints/social/ProfileCatalog.js');
 
 function getCombinations(dictionary, size) {
