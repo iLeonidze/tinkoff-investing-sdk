@@ -44,6 +44,11 @@ module.exports = async function({
 			});
 			response.on("end", () => {
 				const buffer = Buffer.concat(data);
+				if (typeof response.headers['content-type'] === 'undefined') {
+					console.error(buffer.toString());
+					console.error(response);
+					throw new Error('Failed to detect response datatype');
+				}
 				if (response.headers['content-type'].split(';')[0] === 'application/json') {
 					resolve(new ApiResponse({ response, data: buffer.toString() }));
 				} else {

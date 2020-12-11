@@ -50,6 +50,29 @@ class Profiles {
     return profile;
   }
 
+  loadAllProfiles() {
+    if (!this.fsLocation) return;
+    const list = fs.readdirSync(this.fsLocation);
+    for (const item of list) {
+      const profileId = item.split('.')[0];
+      this.loadProfile(profileId);
+    }
+  }
+
+  getAllProfiles() {
+    this.loadAllProfiles();
+    return Object.values(this.profilesById);
+  }
+
+  profilesAmount() {
+    if (!this.fsLocation) return this.profilesInMemoryAmount();
+    return fs.readdirSync(this.fsLocation).length;
+  }
+
+  profilesInMemoryAmount() {
+    return this.profilesById.length;
+  }
+
   unloadProfile(profile) {
     const realProfile = this.getProfile(profile);
 

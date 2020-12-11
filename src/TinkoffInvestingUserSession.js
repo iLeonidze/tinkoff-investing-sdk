@@ -14,7 +14,7 @@ class TinkoffInvestingUserSession {
     this.user = user;
     this.timer = null;
     // this.cooldown = 1100;
-    this.cooldown = 800;
+    this.cooldown = 500;
 
   }
 
@@ -58,7 +58,7 @@ class TinkoffInvestingUserSession {
       const nextConnect = lastConnected + this.cooldown;
       const currentConnect = new Date().getTime();
       if (nextConnect > currentConnect) {
-        await sleep(nextConnect - currentConnect, 400);
+        await sleep(nextConnect - currentConnect, 10);
       }
     }
     if (typeof options['ignoreCooldown'] !== 'undefined') {

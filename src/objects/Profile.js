@@ -144,7 +144,7 @@ class Profile {
 		if (typeof data.raw['yearRelativeYield'] !== 'undefined') {
 			if (typeof data.raw['statistics'] === 'undefined')
 				data.raw['statistics'] = {};
-			data.raw.statistics['yearRelativeYield'] = data['yearRelativeYield'];
+			data.raw.statistics['yearRelativeYield'] = data.raw['yearRelativeYield'];
 			delete data.raw['yearRelativeYield'];
 		}
 
@@ -176,6 +176,25 @@ class Profile {
 			session,
 			storage: this.storage
 		});
+	}
+
+	getNickname() {
+		return typeof this.data.raw['nickname'] !== 'undefined' ? this.data.raw['nickname'] : null;
+	}
+
+	getYearRelativeYield() {
+		if (typeof this.data.raw['statistics'] === 'undefined' || this.data.raw['statistics'] === null) return 0;
+		return typeof this.data.raw.statistics['yearRelativeYield'] !== 'undefined' ? this.data.raw.statistics['yearRelativeYield'] : 0;
+	}
+
+	getMonthOperationsCount() {
+		if (typeof this.data.raw['statistics'] === 'undefined' || this.data.raw['statistics'] === null) return 0;
+		return typeof this.data.raw.statistics['monthOperationsCount'] !== 'undefined' ? this.data.raw.statistics['monthOperationsCount'] : 0;
+	}
+
+	getTotalAmountRange() {
+		return typeof this.data.raw['statistics'] !== 'undefined' && this.data.raw['statistics'] !== null &&
+			typeof this.data.raw.statistics['totalAmountRange'] !== 'undefined' ? this.data.raw.statistics['totalAmountRange'] : { lower: 0, upper: 10000 };
 	}
 
 }

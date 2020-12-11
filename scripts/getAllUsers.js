@@ -1,30 +1,6 @@
 const fs = require('fs');
+const calculateETA = require('../calculateETA.js');
 const ProfileCatalogEndpoint = require('../src/endpoints/social/ProfileCatalog.js');
-
-function timeConversion(duration) {
-  const portions = [];
-
-  const msInHour = 1000 * 60 * 60;
-  const hours = Math.trunc(duration / msInHour);
-  if (hours > 0) {
-    portions.push(hours + 'h');
-    duration = duration - (hours * msInHour);
-  }
-
-  const msInMinute = 1000 * 60;
-  const minutes = Math.trunc(duration / msInMinute);
-  if (minutes > 0) {
-    portions.push(minutes + 'm');
-    duration = duration - (minutes * msInMinute);
-  }
-
-  const seconds = Math.trunc(duration / 1000);
-  if (seconds > 0) {
-    portions.push(seconds + 's');
-  }
-
-  return portions.join(' ');
-}
 
 function getCombinations(dictionary, size) {
   const combinations = [];
@@ -39,14 +15,6 @@ function getCombinations(dictionary, size) {
     }
   }
   return combinations;
-}
-
-function calculateETA(timeStart, currentItem, totalItems) {
-  const currentTime = new Date().getTime();
-  const totalTime = currentTime - timeStart;
-  const perfomance = totalTime / currentItem;
-  const eta = (totalItems - currentItem) * perfomance;
-  return `ETA: ${timeConversion(eta)}, perfomance: ${Math.floor(perfomance)}ms/item, total time: ${timeConversion(totalTime)}`
 }
 
 module.exports = async (session, storage, arguments) => {
