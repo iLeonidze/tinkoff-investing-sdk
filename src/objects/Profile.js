@@ -3,6 +3,8 @@ const fs = require('fs');
 const merge = require('../../utils/merge.js');
 
 const ProfileEndpoint = require("../endpoints/social/Profile.js");
+const ProfileInstrumentsEndpoint = require("../endpoints/social/ProfileInstruments.js");
+const ProfileOperationsEndpoint = require("../endpoints/social/ProfileOperations.js");
 
 const SAVE_DELAY = 1000;
 
@@ -179,11 +181,81 @@ class Profile {
 	}
 
 	async resyncInstrumentsHistory(session, force = false) {
+		if (typeof this.data.meta['instrumentsSyncStamp'] !== 'number') {
+			this.data.meta['instrumentsSyncStamp'] = 0;
+		}
 
+		let firstStamp = null;
+
+		let nextCursor = null;
+		let loadNext = true;
+		while (loadNext) {
+			const instrumentsHistoryRaw = await ProfileInstrumentsEndpoint.get({
+				session,
+				storage: this.storage,
+				profileId: this.profileId,
+				nextCursor
+			});
+			const newInstruments = [];
+			for (const item of instrumentsHistoryRaw) {
+				if (typeof item['type'] === 'undefined') continue;
+				const instrument = {
+					type: item['type'],
+					ticker: item['ticker'],
+					classCode: item['classCode'],
+					operations: item['statistics']['totalOperationsCount'],
+					stamp: Date.parse(item['statistics']['maxTradeDateTime'])
+				}
+				if (firstStamp === null) {
+					firstStamp = instrument.stamp;
+				}
+				if (typeof this.data['instruments'] === 'undefined') {
+					this.data['instruments'] = [];
+				}
+				if (instrument.stamp < this.data.meta['instrumentsSyncStamp'] || instrument.stamp === this.data.meta['instrumentsSyncStamp']) {
+					loadNext = false;
+				}
+				newInstruments.push(instrument);
+			}
+			if (typeof this.data['instruments'] !== 'undefined') {
+				this.data['instruments'] = this.data['instruments'].concat(newInstruments.reverse());
+				this.data['instruments'].sort(function(a, b) {
+					return a.stamp - b.stamp;
+				});
+				for (const i in this.data['instruments']) {
+					for (const j in this.data['instruments']) {
+						if (i !== j
+							&& this.data['instruments'][i].ticker === this.data['instruments'][j].ticker
+							&& this.data['instruments'][i].classCode === this.data['instruments'][j].classCode
+							&& this.data['instruments'][i].stamp < this.data['instruments'][j].stamp) {
+							delete this.data['instruments'][i];
+						}
+					}
+				}
+			}
+			if (instrumentsHistoryRaw.hasNext()) {
+				nextCursor = instrumentsHistoryRaw.nextCursor;
+			} else {
+				loadNext = false;
+			}
+		}
+
+		if (firstStamp !== 'null') {
+			this.data.meta['instrumentsSyncStamp'] = firstStamp;
+		}
+		this.data.meta['instrumentsSynced'] = new Date().getTime();
+		this.setUpdated({ updateMeta: true });
 	}
 
 	async resyncOperationsHistory(session, force = false) {
+		return;
 
+		if (typeof this.data.meta['operationsSyncStamp'] !== 'number') {
+			this.data.meta['operationsSyncStamp'] = 0;
+		}
+
+		this.data.meta['operationsSynced'] = new Date().getTime();
+		this.setUpdated({ updateMeta: true });
 	}
 
 	async resyncAll(session, force = false) {
