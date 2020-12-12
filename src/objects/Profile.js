@@ -219,19 +219,27 @@ class Profile {
 			}
 			if (typeof this.data['instruments'] !== 'undefined') {
 				this.data['instruments'] = this.data['instruments'].concat(newInstruments.reverse());
+				this.data['instruments'] = this.data['instruments'].filter(function(el) {
+					return el != null && typeof el !== 'undefined';
+				});
 				this.data['instruments'].sort(function(a, b) {
 					return a.stamp - b.stamp;
 				});
 				for (const i in this.data['instruments']) {
 					for (const j in this.data['instruments']) {
 						if (i !== j
+							&& typeof this.data['instruments'][i] !== 'undefined'
+							&& typeof this.data['instruments'][j] !== 'undefined'
 							&& this.data['instruments'][i].ticker === this.data['instruments'][j].ticker
 							&& this.data['instruments'][i].classCode === this.data['instruments'][j].classCode
-							&& this.data['instruments'][i].stamp < this.data['instruments'][j].stamp) {
+							&& (this.data['instruments'][i].stamp < this.data['instruments'][j].stamp || this.data['instruments'][i].stamp === this.data['instruments'][j].stamp)) {
 							delete this.data['instruments'][i];
 						}
 					}
 				}
+				this.data['instruments'] = this.data['instruments'].filter(function(el) {
+					return el != null && typeof el !== 'undefined';
+				});
 			}
 			if (instrumentsHistoryRaw.hasNext()) {
 				nextCursor = instrumentsHistoryRaw.nextCursor;
@@ -240,7 +248,7 @@ class Profile {
 			}
 		}
 
-		if (firstStamp !== 'null') {
+		if (firstStamp !== null) {
 			this.data.meta['instrumentsSyncStamp'] = firstStamp;
 		}
 		this.data.meta['instrumentsSynced'] = new Date().getTime();
