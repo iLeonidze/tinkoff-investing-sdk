@@ -181,7 +181,7 @@ class Profile {
 	}
 
 	async resyncInstrumentsHistory(session, force = false) {
-		if (typeof this.data.meta['instrumentsSyncStamp'] !== 'number') {
+		if (typeof this.data.meta['instrumentsSyncStamp'] !== 'number' || force) {
 			this.data.meta['instrumentsSyncStamp'] = 0;
 		}
 
@@ -258,7 +258,7 @@ class Profile {
 	async resyncOperationsHistory(session, force = false) {
 		return;
 
-		if (typeof this.data.meta['operationsSyncStamp'] !== 'number') {
+		if (typeof this.data.meta['operationsSyncStamp'] !== 'number' || force) {
 			this.data.meta['operationsSyncStamp'] = 0;
 		}
 
@@ -268,9 +268,19 @@ class Profile {
 
 	async resyncAll(session, force = false) {
 		await this.resyncProfile(session);
-		await this.resyncInstrumentsHistory(session, force);
-		await this.resyncOperationsHistory(session, force);
+		if (this.isOpened()) {
+			await this.resyncInstrumentsHistory(session, force);
+			await this.resyncOperationsHistory(session, force);
+		}
 		return this;
+	}
+
+	isClosed() {
+		return this.data.raw.status === 'close';
+	}
+
+	isOpened() {
+		return this.data.raw.status === 'open';
 	}
 
 	getNickname() {
@@ -298,6 +308,10 @@ class Profile {
 
 	getFollowingCount() {
 		return typeof this.data.raw['followingCount'] !== 'undefined' && this.data.raw['followingCount'] !== null ? this.data.raw['followingCount'] : 0;
+	}
+
+	getInstruments() {
+		return typeof this.data['instruments'] !== 'undefined' ? this.data['instruments'] : [];
 	}
 
 }
