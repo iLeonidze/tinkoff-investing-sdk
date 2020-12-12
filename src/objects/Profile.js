@@ -243,6 +243,9 @@ class Profile {
 			}
 			if (instrumentsHistoryRaw.hasNext()) {
 				nextCursor = instrumentsHistoryRaw.nextCursor;
+				if (force) {
+					loadNext = true;
+				}
 			} else {
 				loadNext = false;
 			}
@@ -256,12 +259,83 @@ class Profile {
 	}
 
 	async resyncOperationsHistory(session, force = false) {
-		return;
-
+		if (typeof this.data['instruments'] === 'undefined') {
+			await this.resyncInstrumentsHistory(session);
+		}
+		if (typeof this.data['instruments'] === 'undefined' || this.data['instruments'].length === 0) {
+			return;
+		}
 		if (typeof this.data.meta['operationsSyncStamp'] !== 'number' || force) {
 			this.data.meta['operationsSyncStamp'] = 0;
 		}
+		if (typeof this.data['operations'] === 'undefined') {
+			this.data['operations'] = {};
+		}
 
+		let maxSyncStamp = 0;
+
+		const instrumentsToSync = [];
+		for (const instrument of this.data['instruments']) {
+			if (instrument.stamp > this.data.meta['operationsSyncStamp']) {
+				instrumentsToSync.push(instrument);
+				if (instrument.stamp > maxSyncStamp) {
+					maxSyncStamp = instrument.stamp;
+				}
+			}
+		}
+
+		for (const instrument of instrumentsToSync) {
+			if (typeof this.data['operations'][instrument.classCode] === 'undefined') {
+				this.data['operations'][instrument.classCode] = {};
+			}
+			if (typeof this.data['operations'][instrument.classCode][instrument.ticker] === 'undefined') {
+				this.data['operations'][instrument.classCode][instrument.ticker] = {};
+			}
+
+			const instrumentStamps = Object.keys(this.data['operations'][instrument.classCode][instrument.ticker]);
+			const instrumentMaxSyncStamp = instrumentStamps.length > 0 ? Math.max.apply(null, instrumentStamps) : 0;
+
+			let nextCursor = null;
+			let loadNext = true;
+			while (loadNext) {
+
+				const operationsHistoryRaw = await ProfileOperationsEndpoint.get({
+					session,
+					storage: this.storage,
+					profileId: this.profileId,
+					ticker: instrument.ticker,
+					classCode: instrument.classCode,
+					nextCursor
+				});
+
+				for (const operation of operationsHistoryRaw) {
+					const operationStamp = Date.parse(operation['tradeDateTime']);
+					this.data['operations'][instrument.classCode][instrument.ticker][operationStamp] = {
+						action: operation['action'],
+						price: operation['averagePrice']
+					}
+					if (operation['relativeYield'] !== null) {
+						this.data['operations'][instrument.classCode][instrument.ticker][operationStamp]['yield'] = operation['relativeYield'];
+					}
+					if (operationStamp < instrumentMaxSyncStamp || operationStamp === instrumentMaxSyncStamp) {
+						loadNext = false;
+					}
+				}
+
+				if (operationsHistoryRaw.hasNext()) {
+					nextCursor = operationsHistoryRaw.nextCursor;
+					if (force) {
+						loadNext = true;
+					}
+				} else {
+					loadNext = false;
+				}
+
+			}
+
+		}
+
+		this.data.meta['operationsSyncStamp'] = maxSyncStamp;
 		this.data.meta['operationsSynced'] = new Date().getTime();
 		this.setUpdated({ updateMeta: true });
 	}

@@ -20,7 +20,7 @@ class ProfileOperationsEndpoint {
 
     const { payload } = await session.request({
       hostname: 'api-invest-gw.tinkoff.ru',
-      path: `/social/v1/profile/${profileId}/operations/instrument/${ticker}/${classCode}`,
+      path: `/social/v1/profile/${profileId}/operation/instrument/${ticker}/${classCode}`,
       method: 'GET',
       headers: Object.assign({}, session.user.getInvestingHeaders()),
       query: {

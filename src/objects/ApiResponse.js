@@ -17,7 +17,7 @@ class ApiResponse {
 		}
 
 		if (typeof content['status'] !== 'undefined')
-			this.status = content.status.toLowerCase();
+			this.status = typeof content['status'] === 'string' ? content.status.toLowerCase() : content['status'];
 
 		if (typeof content['resultCode'] !== 'undefined')
 			this.status = content.resultCode.toLowerCase();

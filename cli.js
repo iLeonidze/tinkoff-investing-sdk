@@ -25,8 +25,8 @@ async function run() {
 
   //return await require('./scripts/whoami.js')(session, storage, arguments);
 
-  arguments[0] = '000022bb-a784-4c1d-9be9-7073a6af74aa';
-  return await require('./scripts/getUser.js')(session, storage, arguments);
+  // arguments[0] = '000022bb-a784-4c1d-9be9-7073a6af74aa';
+  // return await require('./scripts/getUser.js')(session, storage, arguments);
 
   // arguments[0] = '466';
   // return await require('./scripts/getAllUsers.js')(session, storage, arguments);
@@ -35,7 +35,7 @@ async function run() {
   //return await require('./scripts/findMaxYieldWithDeposit.js')(session, storage, arguments);
 
   //arguments[0] = 650;
-  //return await require('./scripts/reloadAllUsers.js')(session, storage, arguments);
+  return await require('./scripts/reloadAllUsers.js')(session, storage, arguments);
 
 }
 
