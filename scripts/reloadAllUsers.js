@@ -39,7 +39,7 @@ module.exports = async (session, storage, arguments) => {
     }
 
     const profile = storage.profiles.getProfile(yield['id']);
-    await profile.resync(session);
+    await profile.resyncAll(session);
     const eta = calculateETA(timeStarted, currentI - startFromI, yields.length - startFromI);
     console.log(`${currentI}/${yields.length} ${Math.floor(currentI / yields.length * 100)}% --- ${eta} --- ${profile.getNickname()} ${profile.getYearRelativeYield()} ${profile.getMonthOperationsCount()} ${profile.getTotalAmountRange().lower} ${profile.getTotalAmountRange().lower > 100000 && profile.getMonthOperationsCount() > 5 ? '   !!!!!!!!!!' : ''}`);
 

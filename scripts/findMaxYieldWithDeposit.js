@@ -1,3 +1,5 @@
+const simpleTable = require('../utils/simpleTable.js');
+
 module.exports = async (session, storage, arguments) => {
 
   storage.profiles.loadAllProfiles();
@@ -78,15 +80,20 @@ module.exports = async (session, storage, arguments) => {
     return b.yield - a.yield;
   });
 
+  yields.sort(function(a, b) {
+    return b.amount - a.amount;
+  });
+
   //const filteredYields = yields.filter(yield => yield['yield'] < 501);
 
-  const result = [];
+  const result = [['id', 'nickname', 'yield', 'operations', 'deposit', 'followers', 'following']];
 
-  for (let i = 0; i < 100; i++) {
+  for (let i = 0; i < 1000; i++) {
     //if (yield[i]['yield'] > 500) {
     //  continue;
     //}
-    result.push(storage.profiles.getProfile(yields[i]['id']).data.raw);
+    const profile = storage.profiles.getProfile(yields[i]['id']);
+    result.push([profile.profileId, profile.getNickname(), profile.getYearRelativeYield(), profile.getMonthOperationsCount(), profile.getTotalAmountRange().lower, profile.getFollowersCount(), profile.getFollowingCount()]);
   }
 
   console.log();
@@ -105,6 +112,6 @@ module.exports = async (session, storage, arguments) => {
   console.log('1M+ :', amountTenMillions, `${Math.floor(amountTenMillions / positiveTraders * 100)}%`, `~y: ${Math.floor(amountTenMillionSumm / amountTenMillions)}%`);
   console.log();
 
-  return result;
+  return simpleTable(result);
 
 }

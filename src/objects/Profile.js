@@ -170,12 +170,27 @@ class Profile {
 
 	}
 
-	async resync(session) {
+	async resyncProfile(session) {
 		return await ProfileEndpoint.get({
 			profileId: this.profileId,
 			session,
 			storage: this.storage
 		});
+	}
+
+	async resyncInstrumentsHistory(session, force = false) {
+
+	}
+
+	async resyncOperationsHistory(session, force = false) {
+
+	}
+
+	async resyncAll(session, force = false) {
+		await this.resyncProfile(session);
+		await this.resyncInstrumentsHistory(session, force);
+		await this.resyncOperationsHistory(session, force);
+		return this;
 	}
 
 	getNickname() {
@@ -195,6 +210,14 @@ class Profile {
 	getTotalAmountRange() {
 		return typeof this.data.raw['statistics'] !== 'undefined' && this.data.raw['statistics'] !== null &&
 			typeof this.data.raw.statistics['totalAmountRange'] !== 'undefined' ? this.data.raw.statistics['totalAmountRange'] : { lower: 0, upper: 10000 };
+	}
+
+	getFollowersCount() {
+		return typeof this.data.raw['followersCount'] !== 'undefined' && this.data.raw['followersCount'] !== null ? this.data.raw['followersCount'] : 0;
+	}
+
+	getFollowingCount() {
+		return typeof this.data.raw['followingCount'] !== 'undefined' && this.data.raw['followingCount'] !== null ? this.data.raw['followingCount'] : 0;
 	}
 
 }
