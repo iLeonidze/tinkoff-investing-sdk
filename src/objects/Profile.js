@@ -54,6 +54,8 @@ class Profile {
 		if (typeof this.data.meta['created'] !== 'number')
 			this.data.meta['created'] = new Date().getTime();
 
+		this.reloadOperations();
+
 	}
 
 	tryReload() {
@@ -173,6 +175,7 @@ class Profile {
 	}
 
 	async resyncProfile(session) {
+		console.log(`Loading profile`);
 		return await ProfileEndpoint.get({
 			profileId: this.profileId,
 			session,
@@ -190,6 +193,7 @@ class Profile {
 		let nextCursor = null;
 		let loadNext = true;
 		while (loadNext) {
+			console.log(`Loading instruments ${nextCursor}`);
 			const instrumentsHistoryRaw = await ProfileInstrumentsEndpoint.get({
 				session,
 				storage: this.storage,
@@ -273,7 +277,6 @@ class Profile {
 		}
 
 		let maxSyncStamp = 0;
-
 		const instrumentsToSync = [];
 		for (const instrument of this.data['instruments']) {
 			if (instrument.stamp > this.data.meta['operationsSyncStamp']) {
@@ -283,6 +286,8 @@ class Profile {
 				}
 			}
 		}
+
+		if (instrumentsToSync.length < 1) return;
 
 		for (const instrument of instrumentsToSync) {
 			if (typeof this.data['operations'][instrument.classCode] === 'undefined') {
@@ -298,7 +303,7 @@ class Profile {
 			let nextCursor = null;
 			let loadNext = true;
 			while (loadNext) {
-
+				console.log(`Loading operations ${instrument.classCode}/${instrument.ticker} ${nextCursor}`);
 				const operationsHistoryRaw = await ProfileOperationsEndpoint.get({
 					session,
 					storage: this.storage,
@@ -338,6 +343,34 @@ class Profile {
 		this.data.meta['operationsSyncStamp'] = maxSyncStamp;
 		this.data.meta['operationsSynced'] = new Date().getTime();
 		this.setUpdated({ updateMeta: true });
+		this.reloadOperations();
+	}
+
+	reloadOperations() {
+		if (!this.hasOperations()) return;
+		for (const classCode in this.data['operations']) {
+			for (const ticker in this.data['operations'][classCode]) {
+				this.storage.operations.resetTickerForUser({
+					classCode,
+					ticker,
+					profileId: this.profileId
+				})
+				for (const stamp in this.data['operations'][classCode][ticker]) {
+					this.storage.operations.newOperation({
+						profileId: this.profileId,
+						classCode,
+						ticker,
+						stamp,
+						action: this.data['operations'][classCode][ticker][stamp].action,
+						price: this.data['operations'][classCode][ticker][stamp].price
+					});
+				}
+			}
+		}
+	}
+
+	hasOperations() {
+		return typeof this.data['operations'] !== 'undefined' && Object.keys(this.data['operations']).length > 0
 	}
 
 	async resyncAll(session, force = false) {

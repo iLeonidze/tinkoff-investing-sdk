@@ -3,6 +3,7 @@ const path = require('path');
 
 const TinkoffInvestingUsers = require('./TinkoffInvestingUsers.js');
 const Profiles = require('./objects/Profiles.js');
+const Operations = require('./objects/Operations.js');
 
 class TinkoffInvestingStorage {
 
@@ -14,6 +15,10 @@ class TinkoffInvestingStorage {
     }
 
     this.globalContext = {};
+
+    this.operations = new Operations({
+      storage: this
+    });
 
     this.users = new TinkoffInvestingUsers({
       storage: this,

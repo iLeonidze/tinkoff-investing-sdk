@@ -7,10 +7,13 @@ module.exports = async (session, storage, arguments) => {
   const yields = [];
   for (const profile of storage.profiles.getAllProfiles()) {
     const yield = profile.getYearRelativeYield();
-    if (yield < 1) continue;
+    const amount = profile.getTotalAmountRange().lower;
+    const operations = profile.getMonthOperationsCount();
+    if (yield < 10) continue;
     yields.push({
       id: profile.profileId,
-      yield
+      yield,
+      amount
     });
   }
 
@@ -18,9 +21,19 @@ module.exports = async (session, storage, arguments) => {
     return b.yield - a.yield;
   });
 
+  //yields.sort(function(a, b) {
+  //  return b.amount - a.amount;
+  //});
+
   const timeStarted = new Date().getTime();
 
-  const startFrom = arguments[0] || null;
+  let startFrom = parseFloat(arguments[0]) || null;
+  if (startFrom !== null) {
+    startFrom = Math.floor(startFrom * 100) / 100
+    console.log('Start required from', startFrom);
+  }
+
+
   let startFromI = 0;
   let found = !startFrom;
 
@@ -30,7 +43,7 @@ module.exports = async (session, storage, arguments) => {
 
     currentI++;
     if (startFrom && !found) {
-      if (currentI === startFrom) {
+      if ((Math.floor(yield['yield'] * 100) / 100) === startFrom) {
         found = true;
         startFromI = currentI;
       } else {
@@ -38,10 +51,12 @@ module.exports = async (session, storage, arguments) => {
       }
     }
 
+    console.log('Current yild:', yield['yield']);
+
     const profile = storage.profiles.getProfile(yield['id']);
     await profile.resyncAll(session);
     const eta = calculateETA(timeStarted, currentI - startFromI, yields.length - startFromI);
-    console.log(`${currentI}/${yields.length} ${Math.floor(currentI / yields.length * 100)}% --- ${eta} --- ${profile.getNickname()} ${profile.getYearRelativeYield()} ${profile.getMonthOperationsCount()} ${profile.getTotalAmountRange().lower} ${profile.getInstruments().length}`);
+    console.log(`${profile.profileId} ${currentI}/${yields.length} ${Math.floor(currentI / yields.length * 100)}% --- ${eta} --- ${profile.getNickname()} ${profile.getYearRelativeYield()} ${profile.getMonthOperationsCount()} ${profile.getTotalAmountRange().lower} ${profile.getInstruments().length}`);
 
   }
 

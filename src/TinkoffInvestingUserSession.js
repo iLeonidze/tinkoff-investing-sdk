@@ -13,8 +13,9 @@ class TinkoffInvestingUserSession {
 
     this.user = user;
     this.timer = null;
-    // this.cooldown = 1100;
-    this.cooldown = 500;
+    this.cooldown = 410;
+    this.underFail = null;
+    this.underProlong = false;
 
   }
 
@@ -24,9 +25,18 @@ class TinkoffInvestingUserSession {
 
   async start() {
     if (this.isStarted()) return false;
-    await SessionEndpoint.renew(this);
+    if (this.isSessionOutdated()) {
+      console.log('Restarting session...')
+      await SessionEndpoint.renew(this);
+    } else {
+      console.log('Resuming session...');
+    }
     const session = this;
     this.timer = setInterval(function() {
+      if (session.isSessionOutdated()) {
+        console.log('Session is outdated, prolonging...');
+        return session.prolongSession();
+      }
       SessionEndpoint.ping(session).then(res => {
         // ?
       }).catch(e => {
@@ -34,6 +44,19 @@ class TinkoffInvestingUserSession {
       });
     }, 20000);
     return true;
+  }
+
+  isSessionOutdated() {
+    // 8h
+    return (new Date().getTime() - this.user.data.meta['authed']) > 28800000;
+  }
+
+  async prolongSession() {
+    if (this.underProlong) return;
+    this.underProlong = true;
+    await this.stop();
+    await this.start();
+    this.underProlong = false;
   }
 
   stop() {
@@ -65,7 +88,18 @@ class TinkoffInvestingUserSession {
       delete options['ignoreCooldown'];
     }
     this.user.updateConnected();
-    return await request(options);
+    try {
+      return await request(options);
+    } catch (e) {
+      console.error(`Request failed with error ${e.name}`);
+      if (this.underFail == null) {
+        if (e.name === 'InsufficientPrivileges') {
+          this.underFail = 'expiredSession';
+          console.log('Trying to update session...');
+        }
+      }
+      throw e;
+    }
   }
 
 }
